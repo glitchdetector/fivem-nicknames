@@ -30,5 +30,6 @@ convar_category 'Nicknames' {
         {"Anyone can use /color", "nick_color_everyone", "CV_BOOL", true},
         {"Require unique nicknames", "nick_unique", "CV_BOOL", true},
         {"Scan nicknames before applying", "nick_blacklist", "CV_BOOL", true},
+        {"Send notifications in chat", "nick_notify", "CV_BOOL", true},
     }
 }

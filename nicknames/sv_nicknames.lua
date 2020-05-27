@@ -9,6 +9,23 @@ CreateThread(function()
     Colors = json.decode(LoadResourceFile(GetCurrentResourceName(), "colors.json"))
 end)
 
+function Notify(source, text)
+    if GetConvar("nick_notify", "true") == "true" then
+        TriggerClientEvent("chat:addMessage", source, {
+            args = {"Error", text},
+            color = {255, 0, 0},
+        })
+    end
+end
+function Success(source, text, col)
+    if GetConvar("nick_notify", "true") == "true" then
+        TriggerClientEvent("chat:addMessage", source, {
+            args = (col and {text} or {"Success", text}),
+            color = (col or {0, 255, 0}),
+        })
+    end
+end
+
 -- Override a players name with a nickname
 function SetNickname(source, nickname)
     -- Setup data table if not already present
@@ -21,13 +38,39 @@ function SetNickname(source, nickname)
         for _, phrase in next, Blacklist do
             if nickLower:find(phrase) ~= nil then
                 -- illegal phrase, return to prevent further execution
+                Notify(source, "Blacklisted phrase in nickname")
                 return false
+            end
+        end
+    end
+    -- Check unique name
+    if GetConvar("nick_unique", "true") == "true" then
+        local nickLower = nickname:lower()
+        -- check nicknames
+        for serverId, nick in next, Nicknames do
+            if nick.name and nick.name:lower() == nickLower then
+                -- make sure we're not impersonating ourselves
+                if tonumber(serverId) ~= source then
+                    Notify(source, "Not a unique nickname")
+                    return false
+                end
+            end
+        end
+        -- check base names
+        for serverId, player in next, GetPlayers() do
+            if GPN(player):lower() == nickLower then
+                -- make sure we're not impersonating ourselves
+                if tonumber(serverId) ~= source then
+                    Notify(source, "Not a unique nickname")
+                    return false
+                end
             end
         end
     end
     -- Store new nickname
     Nicknames[source].name = nickname
     -- Send nickname update to clients and other resources
+    Success(source, "Nickname changed to " .. nickname, GetPlayerColor(source))
     TriggerEvent("onPlayerNicknameChange", source, nickname)
     TriggerEvent("onPlayerNameChange", source, nickname)
     TriggerClientEvent("nicknames:update", -1, {[source] = Nicknames[source]})
@@ -42,21 +85,29 @@ function SetColor(source, r, g, b, name)
     -- Store new color
     Nicknames[source].color = {r, g, b}
     -- Send color update to clients and other resources
+    Success(source, "Color changed to " .. (name or "custom"), Nicknames[source].color)
     TriggerEvent("onPlayerColorChange", source, r, g, b, name)
     TriggerClientEvent("nicknames:update", -1, {[source] = Nicknames[source]})
 end
 
 -- Command handler for /nickname
 function nicknameHandler(source, args)
-    if #args < 1 then return false end
+    if #args < 1 then
+        Notify(source, "No nickname specified")
+        return false
+    end
     local nickname = table.concat(args, " ")
     SetNickname(source, nickname)
 end
 -- Proxy function to check for permissions when required
 function nicknameHandlerProxy(source, args)
+    local function notify(text)
+        Notify(source, text)
+    end
     if GetConvar("nick_nick_everyone", "true") ~= "true" then
         if not IsPlayerAceAllowed(source, "command.nickname") then
             -- Player does not have permission to use the command
+            Notify(source, "Not allowed to use this command")
             return false
         end
     end
@@ -67,12 +118,16 @@ RegisterCommand("nick", nicknameHandlerProxy) -- /nick [nickname]
 
 -- Command handler for /color
 function colorHandler(source, args)
-    if #args < 1 then return false end
+    if #args < 1 then
+        Notify(source, "No color specified")
+        return false
+    end
     local selectedColor = args[1]:lower()
     if Colors[selectedColor] then
         local color = Colors[selectedColor]
         SetColor(source, color[1], color[2], color[3], selectedColor)
     else
+        Notify(source, "Invalid color specified")
         return false
     end
 end
@@ -81,6 +136,7 @@ function colorHandlerProxy(source, args)
     if GetConvar("nick_color_everyone", "true") ~= "true" then
         if not IsPlayerAceAllowed(source, "command.color") then
             -- Player does not have permission to use the command
+            Notify(source, "Not allowed to use this command")
             return false
         end
     end
@@ -90,7 +146,10 @@ RegisterCommand("color", colorHandlerProxy) -- /color [color]
 
 -- Command handler for /color_adv
 function colorAdvHandler(source, args)
-    if #args < 3 then return false end
+    if #args < 3 then
+        Notify(source, "No color specified")
+        return false
+    end
     local r = math.min(255, math.max(0, math.floor(tonumber(args[1]))))
     local g = math.min(255, math.max(0, math.floor(tonumber(args[2]))))
     local b = math.min(255, math.max(0, math.floor(tonumber(args[3]))))
@@ -101,6 +160,7 @@ function colorAdvHandlerProxy(source, args)
     if GetConvar("nick_color_everyone", "true") ~= "true" then
         if not IsPlayerAceAllowed(source, "command.color") then
             -- Player does not have permission to use the command
+            Notify(source, "Not allowed to use this command")
             return false
         end
     end

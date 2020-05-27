@@ -42,6 +42,7 @@ Other elements of the resource can be configured using convars
 | `nick_color_everyone` | Anyone can use `/color` (on themselves) | true |
 | `nick_unique` | Require unique nicknames and prevent using existing names | true |
 | `nick_blacklist` | Scan nicknames using the blacklist file before applying | true |
+| `nick_notify` | Send notifications in chat | true |
 
 ## Developers
 ### Exports
